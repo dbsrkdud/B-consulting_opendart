@@ -13,111 +13,25 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class G2B {
+public class OpenDart {
 
     public static void main(String[] args) throws IOException {
 
-        // readJson();
-
         // 기업 고유번호 조회
-        // JSONArray corpCodeJsonArr = retrieveCorpCode();
+        // retrieveCorpCode();
 
         // 기업개황 데이터 json 파일로 저장
-        // writeJson();
+        // setCompanyJsonArr();
 
-        JsonParser jsonParser = new JsonParser();
-        FileReader reader = new FileReader("companyInfo.json");
-        JsonElement element = jsonParser.parse(reader);
-
-        System.out.println();
+        // 기업개황 데이터 json 파일 합쳐서 하나의 json 파일로 저장 (companyInfo.jsom)
+        // joinCompanyJsonArray();
 
 
     }
-
-    // 나라장터 입찰공고 조회 - 공공데이터포털
-    public static void getDataSetOpnStdBidPblancInfo () throws IOException {
-        StringBuilder urlBuilder = new StringBuilder("http://apis.data.go.kr/1230000/ao/PubDataOpnStdService/getDataSetOpnStdBidPblancInfo"); /*URL*/
-        urlBuilder.append("?" + URLEncoder.encode("serviceKey","UTF-8") + "=odXIjL8t56rG0Fz1a69qgTTpLKxSPvIJG%2FlPU3bFsLOjdSAKcwHy8Wx0OCox8vLCtZEl6B9Jw%2BlWyoMylWEwsg%3D%3D"); /*Service Key*/
-        urlBuilder.append("&" + URLEncoder.encode("bidNtceBgnDt","UTF-8") + "=" + URLEncoder.encode("202508050000", "UTF-8"));
-        urlBuilder.append("&" + URLEncoder.encode("bidNtceEndDt","UTF-8") + "=" + URLEncoder.encode("202509042359", "UTF-8"));
-        urlBuilder.append("&" + URLEncoder.encode("numOfRows","UTF-8") + "=" + URLEncoder.encode("999", "UTF-8"));
-        urlBuilder.append("&" + URLEncoder.encode("pageNo","UTF-8") + "=" + URLEncoder.encode("35", "UTF-8"));
-        urlBuilder.append("&" + URLEncoder.encode("type","UTF-8") + "=" + URLEncoder.encode("json", "UTF-8"));
-
-        URL url = new URL(urlBuilder.toString());
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("Content-type", "application/json");
-        System.out.println("Response code: " + conn.getResponseCode());
-        BufferedReader rd;
-        if(conn.getResponseCode() >= 200 && conn.getResponseCode() <= 300) {
-            rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        } else {
-            rd = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-        }
-
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = rd.readLine()) != null) {
-            sb.append(line);
-        }
-        rd.close();
-        conn.disconnect();
-//        System.out.println(sb.toString());
-//        System.out.println("=======================================================================\n");
-
-        /*
-        JsonObject root = JsonParser.parseString(sb.toString()).getAsJsonObject();
-        JsonArray items = root.getAsJsonObject("response").getAsJsonObject("body").getAsJsonArray("items");
-
-        int index = 0;
-        for (JsonElement element : items) {
-
-            JsonObject item = element.getAsJsonObject();
-            String bsnsDivNm = item.get("bsnsDivNm").getAsString();
-
-            if (bsnsDivNm.equals("용역") || bsnsDivNm.equals("용역")) {
-                System.out.println(bsnsDivNm);
-            }
-            index++;
-        }
-         */
-
-        JsonObject root = JsonParser.parseString(sb.toString()).getAsJsonObject();
-        JsonArray items = root.getAsJsonObject("response").getAsJsonObject("body").getAsJsonArray("items");
-
-        List<JsonObject> list = new ArrayList<>();
-        items.forEach(e -> list.add(e.getAsJsonObject()));
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-        list.sort((o1, o2) -> {
-            String date1 = o1.has("bidNtceDate") ? o1.get("bidNtceDate").getAsString() : "";
-            String time1 = o1.has("bidNtceBgn") ? o1.get("bidNtceBgn").getAsString() : "00:00";
-
-            String date2 = o2.has("bidNtceDate") ? o2.get("bidNtceDate").getAsString() : "";
-            String time2 = o2.has("bidNtceBgn") ? o2.get("bidNtceBgn").getAsString() : "00:00";
-
-            if (date1.isEmpty() && date2.isEmpty()) return 0;
-            if (date1.isEmpty()) return 1;
-            if (date2.isEmpty()) return -1;
-
-            LocalDateTime dt1 = LocalDateTime.parse(date1 + " " + time1, formatter);
-            LocalDateTime dt2 = LocalDateTime.parse(date2 + " " + time2, formatter);
-
-            return dt2.compareTo(dt1);
-        });
-    }
-
-    // a1ab4687628095bbae0fd90f4c34c9c897fda441
 
     // 고유번호 - 오픈다트
     public static JSONArray retrieveCorpCode() throws IOException {
@@ -262,7 +176,7 @@ public class G2B {
     }
 
     // 기업개황 데이터 json 파일로 저장
-    public static void writeJson() throws IOException {
+    public static void setCompanyJsonArr() throws IOException {
 
         JsonParser jsonParser = new JsonParser();
 
@@ -276,7 +190,7 @@ public class G2B {
         int total =  corpCodeJsonArr.size();
         System.out.println("총 기업 수  : " + total);
 
-        int batchSize = 113910;
+        int batchSize = corpCodeJsonArr.size();
         // API 차단 방지용
         int delayMillis = 600;
 
@@ -309,7 +223,8 @@ public class G2B {
     }
 
     // 기업개황 json 파일 묶어서 하나의 json으로 저장
-    public static void readJson() throws IOException {
+    // public static void readJson() throws IOException {
+    public static void joinCompanyJsonArray() throws IOException {
 
         JsonArray companyJsonArr = new JsonArray();
 
