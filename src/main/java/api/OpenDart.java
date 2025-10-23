@@ -13,6 +13,10 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -21,15 +25,17 @@ public class OpenDart {
 
     public static void main(String[] args) throws IOException {
 
-        // 기업 고유번호 조회
+        // 1. 기업 고유번호 조회 -> 수집 결과 파일 : corpCode.json
         // retrieveCorpCode();
 
-        // 기업개황 데이터 json 파일로 저장
-        // setCompanyJsonArr();
+        // 2. 기업개황 데이터 수집 -> 파라미터 : 기업고유번호 json 파일
+        // setCompanyJsonArr("corpCode.json");
 
-        // 기업개황 데이터 json 파일 합쳐서 하나의 json 파일로 저장 (companyInfo.jsom)
-        // joinCompanyJsonArray();
+        // 3. 새로운 기업고유번호에 대한 기업개황 데이터 수집 -> 수집 결과 파일 : newCorpCode.json
+        // setnewCorpCode();
 
+        // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장
+        // joinJsonArray("companyInfo.json", "company_11.json");
 
     }
 
@@ -176,11 +182,11 @@ public class OpenDart {
     }
 
     // 기업개황 데이터 json 파일로 저장
-    public static void setCompanyJsonArr() throws IOException {
+    public static void setCompanyJsonArr(String fileName) throws IOException {
 
         JsonParser jsonParser = new JsonParser();
 
-        FileReader reader = new FileReader("corpCode.json");
+        FileReader reader = new FileReader(fileName);
         JsonElement element = jsonParser.parse(reader);
         JsonArray corpCodeJsonArr = element.getAsJsonArray();
 
@@ -190,23 +196,25 @@ public class OpenDart {
         int total =  corpCodeJsonArr.size();
         System.out.println("총 기업 수  : " + total);
 
+        // 오픈 다트 하루 수집량 10,000건으로 수집한 기업고유번호 데이터 갯수에 따른 조정 필요 (corpCodeJsonArr)
         int batchSize = corpCodeJsonArr.size();
         // API 차단 방지용
         int delayMillis = 600;
 
-        for (int i = 95000; i < batchSize; i++){
+        for (int i = 0; i < batchSize; i++){
             String corp_code = corpCodeJsonArr.get(i).getAsJsonObject().get("corp_code").getAsString();
-            String corp_eng_name = corpCodeJsonArr.get(i).getAsJsonObject().get("corp_eng_name").getAsString();
-            String corp_name = corpCodeJsonArr.get(i).getAsJsonObject().get("corp_name").getAsString();
-            String stock_code = corpCodeJsonArr.get(i).getAsJsonObject().get("stock_code").getAsString();
-            String modify_date = corpCodeJsonArr.get(i).getAsJsonObject().get("modify_date").getAsString();
+//            String corp_eng_name = corpCodeJsonArr.get(i).getAsJsonObject().get("corp_eng_name").getAsString();
+//            String corp_name = corpCodeJsonArr.get(i).getAsJsonObject().get("corp_name").getAsString();
+//            String stock_code = corpCodeJsonArr.get(i).getAsJsonObject().get("stock_code").getAsString();
+//            String modify_date = corpCodeJsonArr.get(i).getAsJsonObject().get("modify_date").getAsString();
 
             try {
+                // 기업개황 API
                 JSONObject companyInfo = (JSONObject) retrieveCompany(corp_code);
 
                 companyJsonArr.put(companyInfo);
 
-                System.out.println(i + " / " + batchSize + " 건 처리 완료");
+                System.out.println(i + 1 + " / " + batchSize + " 건 처리 완료");
 
                 TimeUnit.MILLISECONDS.sleep(delayMillis);
 
@@ -216,18 +224,21 @@ public class OpenDart {
 
         };
 
-        FileWriter writer = new FileWriter("company_10.json");
+        // 기업개황 데이터 수집 결과 저장할 json 파일명
+        String resultFileName = "companyInfo.json";
+
+        FileWriter writer = new FileWriter(resultFileName);
         writer.write(companyJsonArr.toString());
         writer.flush();
         writer.close();
     }
 
-    // 기업개황 json 파일 묶어서 하나의 json으로 저장
-    // public static void readJson() throws IOException {
-    public static void joinCompanyJsonArray() throws IOException {
+    // 두개의 json 파일 묶어서 하나의 json 파일로 저장
+    public static void joinJsonArray(String fileNameA, String fileNameB) throws IOException {
 
-        JsonArray companyJsonArr = new JsonArray();
+        JsonArray resultJson = new JsonArray();
 
+        /*
         for (int i = 1; i <= 10; i++) {
             JsonParser jsonParser = new JsonParser();
             Reader reader = new FileReader("company_" + i + ".json");
@@ -239,14 +250,88 @@ public class OpenDart {
                 companyJsonArr.add(companyInfo.get(j));
             }
         }
+        */
 
-        System.out.println();
+        JsonParser jsonParser = new JsonParser();
+        FileReader readerA = new FileReader(fileNameA);
 
-        FileWriter writer = new FileWriter("companyInfo.json");
-        writer.write(companyJsonArr.toString());
+        Object objA = jsonParser.parse(readerA);
+        JsonArray jsonArrayA = (JsonArray) objA;
+
+        for (int i = 0; i < jsonArrayA.size(); i++) {
+            resultJson.add(jsonArrayA.get(i));
+        }
+
+        FileReader readerB = new FileReader(fileNameB);
+
+        Object objB = jsonParser.parse(readerB);
+        JsonArray jsonArrayB = (JsonArray) objB;
+
+        for (int i = 0; i < jsonArrayB.size(); i++) {
+            resultJson.add(jsonArrayB.get(i));
+        }
+
+        String resultFileName = "resultCompanyInfo.json";
+
+        FileWriter writer = new FileWriter(resultFileName);
+        writer.write(resultJson.toString());
         writer.flush();
         writer.close();
 
+    }
+
+    // 새로운 기업고유번호에 대한 기업개황 데이터 수집
+    public static void setnewCorpCode() throws IOException {
+
+        // 오픈 다트 기업고유번호 수집 데이터 json 파일
+        JsonParser corpParser = new JsonParser();
+        FileReader corpReader = new FileReader("corpCode.json");
+        JsonElement corpElement = corpParser.parse(corpReader);
+        JsonArray corpJsonArr = corpElement.getAsJsonArray();
+
+        // 기존에 수집했던 기업개황 데이터 json 파일
+        JsonParser companyInfoParser = new JsonParser();
+        FileReader companyInfoReader = new FileReader("companyInfo.json");
+        JsonElement companyInfoElement = companyInfoParser.parse(companyInfoReader);
+        JsonArray companyInfoJsonArr = companyInfoElement.getAsJsonArray();
+
+        // HashSet 사용하는 이유 : 중복 허용 X, 탐색 속도 ↑, 집합 연산 지원
+        Set<String> corpSet = new HashSet<>();
+        Set<String> companyInfoSet = new HashSet<>();
+
+        for (JsonElement el : corpJsonArr) {
+            JsonObject corpObj = el.getAsJsonObject();
+            if (corpObj.has("corp_code")) {
+                corpSet.add(corpObj.get("corp_code").getAsString());
+            }
+        }
+
+        for (JsonElement el : companyInfoJsonArr) {
+            JsonObject companyInfoObj = el.getAsJsonObject();
+            if (companyInfoObj.has("corp_code")) {
+                companyInfoSet.add(companyInfoObj.get("corp_code").getAsString());
+            }
+        }
+
+        // corpSet 에는 있고 companyInfoSet 에는 없는 corpCode 만 저장 : 차집합 연산 (새로운 기업고유번호만 저장)
+        Set<String> newCorpSet = new HashSet<>(corpSet);
+        newCorpSet.removeAll(companyInfoSet);
+
+        // HashSet -> JsonArray 변환
+        JsonArray newCorpJsonArr = new JsonArray();
+        for (String corpCode : newCorpSet) {
+            JsonObject corpObj = new JsonObject();
+            corpObj.addProperty("corp_code", corpCode);
+            newCorpJsonArr.add(corpObj);
+        }
+
+        FileWriter writer = new FileWriter("newCorpCode.json");
+        writer.write(newCorpJsonArr.toString());
+        writer.flush();
+        writer.close();
+
+        // 새로 추가 될 기업고유번호에 대한 기업개황 데이터 수집
+        setCompanyJsonArr("newCorpCode.json");
 
     }
 
