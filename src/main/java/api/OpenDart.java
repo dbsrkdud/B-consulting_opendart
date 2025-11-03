@@ -13,9 +13,10 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.time.LocalDate;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
@@ -36,6 +37,17 @@ public class OpenDart {
 
         // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장
         // joinJsonArray("companyInfo.json", "company_11.json");
+
+        JsonParser jsonParser = new JsonParser();
+
+        FileReader reader = new FileReader("corpCode.json");
+        JsonElement element = jsonParser.parse(reader);
+        JsonArray jsonArr = element.getAsJsonArray();
+
+        System.out.println();
+
+        // json -> csv 변환
+        // convertJsonToCsv();
 
     }
 
@@ -332,6 +344,45 @@ public class OpenDart {
 
         // 새로 추가 될 기업고유번호에 대한 기업개황 데이터 수집
         setCompanyJsonArr("newCorpCode.json");
+
+    }
+
+    public static void convertJsonToCsv() throws IOException {
+
+        JsonParser jsonParser = new JsonParser();
+        FileReader reader = new FileReader("corpCode.json");
+        JsonElement element = jsonParser.parse(reader);
+        JsonArray jsonArr = element.getAsJsonArray();
+        JsonObject corpObj = jsonArr.get(0).getAsJsonObject();
+
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("corpCode.csv"), StandardCharsets.UTF_8));
+
+        ArrayList<String> keyArr =  new ArrayList<>();
+        Set<String> Keys = corpObj.keySet();
+        int idx = 0;
+
+        for (String key : Keys) {
+            keyArr.add(key);
+            writer.write(key);
+            if (++idx < Keys.size()) {
+                writer.write(",");
+            }
+        }
+
+        writer.write("\n");
+
+        for (JsonElement jsonElement : jsonArr) {
+            idx = 0;
+            for (int i = 0; i < keyArr.size(); i++) {
+                writer.write(jsonElement.getAsJsonObject().get(keyArr.get(i)).toString());
+                if (++idx < Keys.size()) {
+                    writer.write(",");
+                }
+            }
+            writer.write("\n");
+        }
+
+        writer.close();
 
     }
 
