@@ -36,14 +36,14 @@ public class OpenDart {
         // setnewCorpCode();
 
         // 4. 새로 추가 될 기업고유번호에 대한 기업개황 데이터 수집
-        setCompanyJsonArr("newCorpCode.json");
+        // setCompanyJsonArr("newCorpCode.json");
 
         // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장
-        joinJsonArray("companyInfo.json", "newCompanyInfo.json");
+        // joinJsonArray("newCompanyInfo.json", "resultCompanyInfo.json");
 
         JsonParser jsonParser = new JsonParser();
 
-        FileReader reader = new FileReader("newCorpCode.json");
+        FileReader reader = new FileReader("resultCompanyInfo.json");
         JsonElement element = jsonParser.parse(reader);
         JsonArray jsonArr = element.getAsJsonArray();
 
@@ -292,7 +292,7 @@ public class OpenDart {
 
         // 기존에 수집했던 기업개황 데이터 json 파일
         JsonParser companyInfoParser = new JsonParser();
-        FileReader companyInfoReader = new FileReader("companyInfo.json");
+        FileReader companyInfoReader = new FileReader("resultCompanyInfo.json");
         JsonElement companyInfoElement = companyInfoParser.parse(companyInfoReader);
         JsonArray companyInfoJsonArr = companyInfoElement.getAsJsonArray();
 
