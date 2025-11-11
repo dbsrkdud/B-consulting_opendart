@@ -27,27 +27,27 @@ public class OpenDart {
     public static void main(String[] args) throws IOException {
 
         // 1. 기업 고유번호 조회 -> 수집 결과 파일 : corpCode.json
-        // retrieveCorpCode();
+        retrieveCorpCode();
 
         // 2. 기업개황 데이터 수집 -> 파라미터 : 기업고유번호 json 파일
         // setCompanyJsonArr("corpCode.json");
 
         // 3. 새로운 기업고유번호에 대한 기업개황 데이터 수집 -> 수집 결과 파일 : newCorpCode.json
-        // setnewCorpCode();
+        setnewCorpCode();
 
         // 4. 새로 추가 될 기업고유번호에 대한 기업개황 데이터 수집
-        // setCompanyJsonArr("newCorpCode.json");
+        setCompanyJsonArr("newCorpCode.json");
 
         // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장
-        // joinJsonArray("newCompanyInfo.json", "resultCompanyInfo.json");
+        joinJsonArray("newCompanyInfo.json", "resultCompanyInfo.json");
 
         JsonParser jsonParser = new JsonParser();
 
-        FileReader reader = new FileReader("resultCompanyInfo.json");
+        Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\corpCode.json"), "UTF-8");
         JsonElement element = jsonParser.parse(reader);
         JsonArray jsonArr = element.getAsJsonArray();
 
-        System.out.println();
+        System.out.println("corpCode 크기 : " + jsonArr.size());
 
         // json -> csv 변환
         convertJsonToCsv("resultCompanyInfo");
@@ -59,7 +59,7 @@ public class OpenDart {
         String crtfc_key = "a1ab4687628095bbae0fd90f4c34c9c897fda441";
         String zipFilePath = "corpCode.zip";
         String xmlFilePath = "corpCode.xml";
-        String jsonFilePath = "corpCode.json";
+        String jsonFilePath = "C:\\Users\\admin\\Desktop\\B-consulting_opendart\\corpCode.json";
 
         JSONArray jsonArr = new JSONArray();
 
@@ -201,7 +201,7 @@ public class OpenDart {
 
         JsonParser jsonParser = new JsonParser();
 
-        FileReader reader = new FileReader(fileName);
+        Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileName), "UTF-8");
         JsonElement element = jsonParser.parse(reader);
         JsonArray corpCodeJsonArr = element.getAsJsonArray();
 
@@ -242,7 +242,7 @@ public class OpenDart {
         // 기업개황 데이터 수집 결과 저장할 json 파일명
         String resultFileName = "newCompanyInfo.json";
 
-        FileWriter writer = new FileWriter(resultFileName);
+        FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + resultFileName);
         writer.write(companyJsonArr.toString());
         writer.flush();
         writer.close();
@@ -254,7 +254,7 @@ public class OpenDart {
         JsonArray resultJson = new JsonArray();
 
         JsonParser jsonParser = new JsonParser();
-        FileReader readerA = new FileReader(fileNameA);
+        Reader readerA = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileNameA), "UTF-8");
 
         Object objA = jsonParser.parse(readerA);
         JsonArray jsonArrayA = (JsonArray) objA;
@@ -263,7 +263,7 @@ public class OpenDart {
             resultJson.add(jsonArrayA.get(i));
         }
 
-        FileReader readerB = new FileReader(fileNameB);
+        Reader readerB = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileNameB), "UTF-8");
 
         Object objB = jsonParser.parse(readerB);
         JsonArray jsonArrayB = (JsonArray) objB;
@@ -272,7 +272,7 @@ public class OpenDart {
             resultJson.add(jsonArrayB.get(i));
         }
 
-        String resultFileName = "resultCompanyInfo.json";
+        String resultFileName = "C:\\Users\\admin\\Desktop\\B-consulting_opendart\\resultCompanyInfo.json";
 
         FileWriter writer = new FileWriter(resultFileName);
         writer.write(resultJson.toString());
@@ -286,13 +286,15 @@ public class OpenDart {
 
         // 오픈 다트 기업고유번호 수집 데이터 json 파일
         JsonParser corpParser = new JsonParser();
-        FileReader corpReader = new FileReader("corpCode.json");
+        Reader corpReader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\corpCode.json"), "UTF-8");
+
         JsonElement corpElement = corpParser.parse(corpReader);
         JsonArray corpJsonArr = corpElement.getAsJsonArray();
 
         // 기존에 수집했던 기업개황 데이터 json 파일
         JsonParser companyInfoParser = new JsonParser();
-        FileReader companyInfoReader = new FileReader("resultCompanyInfo.json");
+        Reader companyInfoReader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\resultCompanyInfo.json"), "UTF-8");
+
         JsonElement companyInfoElement = companyInfoParser.parse(companyInfoReader);
         JsonArray companyInfoJsonArr = companyInfoElement.getAsJsonArray();
 
@@ -337,7 +339,7 @@ public class OpenDart {
             newCorpJsonArr.add(corpObj);
         }
 
-        FileWriter writer = new FileWriter("newCorpCode.json");
+        FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json");
         writer.write(newCorpJsonArr.toString());
         writer.flush();
         writer.close();
@@ -347,12 +349,12 @@ public class OpenDart {
     public static void convertJsonToCsv(String fileName) throws IOException {
 
         JsonParser jsonParser = new JsonParser();
-        FileReader reader = new FileReader(fileName + ".json");
+        Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileName + ".json"), "UTF-8");
         JsonElement element = jsonParser.parse(reader);
         JsonArray jsonArr = element.getAsJsonArray();
         JsonObject corpObj = jsonArr.get(0).getAsJsonObject();
 
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName + ".csv"), StandardCharsets.UTF_8));
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileName + ".csv"), StandardCharsets.UTF_8));
 
         ArrayList<String> keyArr =  new ArrayList<>();
         Set<String> Keys = corpObj.keySet();
