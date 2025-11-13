@@ -14,17 +14,16 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class OpenDart {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ClassNotFoundException {
 
         // 1. 기업 고유번호 조회 -> 수집 결과 파일 : corpCode.json
         retrieveCorpCode();
@@ -38,19 +37,25 @@ public class OpenDart {
         // 4. 새로 추가 될 기업고유번호에 대한 기업개황 데이터 수집
         setCompanyJsonArr("newCorpCode.json");
 
-        // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장
-        joinJsonArray("newCompanyInfo.json", "resultCompanyInfo.json");
-
-        JsonParser jsonParser = new JsonParser();
-
-        Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\corpCode.json"), "UTF-8");
-        JsonElement element = jsonParser.parse(reader);
-        JsonArray jsonArr = element.getAsJsonArray();
-
-        System.out.println("corpCode 크기 : " + jsonArr.size());
+        // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장 (corp_code가 중복일 시 새로운 기업개황 정보로 저장)
+        joinJsonArray("resultCompanyInfo.json", "newCompanyInfo.json");
 
         // json -> csv 변환
         convertJsonToCsv("resultCompanyInfo");
+
+        // 기업고유번호 MERGE
+        insertCorpCode();
+
+        // 기업개황 MERGE
+        insertCompanyInfo();
+
+//        JsonParser jsonParser = new JsonParser();
+//
+//        Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json"), "UTF-8");
+//        JsonElement element = jsonParser.parse(reader);
+//        JsonArray jsonArr = element.getAsJsonArray();
+//
+//        System.out.println("arr 크기 : " + jsonArr.size());
 
     }
 
@@ -132,16 +137,30 @@ public class OpenDart {
                 Element ele = (Element) list.item(i);
 
                 JSONObject obj = new JSONObject();
-                obj.put("corp_code", ele.getElementsByTagName("corp_code").item(0).getTextContent().trim());
-                obj.put("corp_name", ele.getElementsByTagName("corp_name").item(0).getTextContent().trim());
-                obj.put("corp_eng_name", ele.getElementsByTagName("corp_eng_name").item(0).getTextContent().trim());
-                obj.put("stock_code", ele.getElementsByTagName("stock_code").item(0).getTextContent().trim());
-                obj.put("modify_date", ele.getElementsByTagName("modify_date").item(0).getTextContent().trim());
+
+                // 마지막에 큰따옴표 있을 시 삭제 -> csv 변환 시 컬럼 경계 깨지는 현상 발생
+                String corp_code = ele.getElementsByTagName("corp_code").item(0).getTextContent().trim();
+                if (corp_code.endsWith("\"")) corp_code = corp_code.substring(0, corp_code.length() - 1);
+                String corp_name = ele.getElementsByTagName("corp_name").item(0).getTextContent().trim();
+                if (corp_name.endsWith("\"")) corp_name = corp_name.substring(0, corp_name.length() - 1);
+                String corp_eng_name = ele.getElementsByTagName("corp_eng_name").item(0).getTextContent().trim();
+                if (corp_eng_name.endsWith("\"")) corp_eng_name = corp_eng_name.substring(0, corp_eng_name.length() - 1);
+                String stock_code = ele.getElementsByTagName("stock_code").item(0).getTextContent().trim();
+                if (stock_code.endsWith("\"")) stock_code = stock_code.substring(0, stock_code.length() - 1);
+                String modify_date = ele.getElementsByTagName("modify_date").item(0).getTextContent().trim();
+                if (modify_date.endsWith("\"")) modify_date = modify_date.substring(0, modify_date.length() - 1);
+
+                obj.put("corp_code", corp_code);
+                obj.put("corp_name", corp_name);
+                obj.put("corp_eng_name", corp_eng_name);
+                obj.put("stock_code", stock_code);
+                obj.put("modify_date", modify_date);
 
                 jsonArr.put(obj);
             }
 
             try (FileWriter fw = new FileWriter(jsonFilePath)) {
+                // indetFactor : 들여쓰기 공백 수
                 fw.write(jsonArr.toString(2));
             }
 
@@ -185,7 +204,6 @@ public class OpenDart {
             }
             rd.close();
             conn.disconnect();
-            // System.out.println(sb.toString());
 
             // json 형태로 리턴
             return new JSONObject(sb.toString());
@@ -259,17 +277,27 @@ public class OpenDart {
         Object objA = jsonParser.parse(readerA);
         JsonArray jsonArrayA = (JsonArray) objA;
 
-        for (int i = 0; i < jsonArrayA.size(); i++) {
-            resultJson.add(jsonArrayA.get(i));
-        }
-
         Reader readerB = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileNameB), "UTF-8");
 
         Object objB = jsonParser.parse(readerB);
         JsonArray jsonArrayB = (JsonArray) objB;
 
+        HashMap<String, JsonObject> map = new HashMap<>();
+
+        for (int i = 0; i < jsonArrayA.size(); i++) {
+            JsonObject obj = jsonArrayA.get(i).getAsJsonObject();
+            String corp_code = obj.get("corp_code").getAsString();
+            map.put(corp_code, obj);
+        }
+
         for (int i = 0; i < jsonArrayB.size(); i++) {
-            resultJson.add(jsonArrayB.get(i));
+            JsonObject obj = jsonArrayB.get(i).getAsJsonObject();
+            String corp_code = obj.get("corp_code").getAsString();
+            map.put(corp_code, obj);
+        }
+
+        for (JsonObject obj : map.values()) {
+            resultJson.add(obj);
         }
 
         String resultFileName = "C:\\Users\\admin\\Desktop\\B-consulting_opendart\\resultCompanyInfo.json";
@@ -320,23 +348,32 @@ public class OpenDart {
         Set<String> newCorpSet = new HashSet<>(corpSet);
         newCorpSet.removeAll(companyInfoSet);
 
-        // String date = "20250915";
+        newCorpSet.forEach(corp -> System.out.println("새로운 기업고유번호 : " + corp));
 
-//        for (JsonElement el : corpJsonArr) {
-//            JsonObject corpObj = el.getAsJsonObject();
-//            String modifyDate = corpObj.get("modify_date").getAsString();
-//
-//            if (modifyDate.compareTo(date) >= 0) {
-//                newCorpSet.add(corpObj.get("corp_code").getAsString());
-//            }
-//        }
+        Calendar cal = Calendar.getInstance();
+        String format = "yyyyMMdd";
+        SimpleDateFormat sdf = new SimpleDateFormat(format);
+        cal.add(cal.DATE, -1);
+        String date = sdf.format(cal.getTime());
 
-        // HashSet -> JsonArray 변환
+        for (JsonElement el : corpJsonArr) {
+            JsonObject corpObj = el.getAsJsonObject();
+            String modifyDate = corpObj.get("modify_date").getAsString();
+
+            if (modifyDate.compareTo(date) >= 0) {
+                newCorpSet.add(corpObj.get("corp_code").getAsString());
+            }
+        }
+
         JsonArray newCorpJsonArr = new JsonArray();
-        for (String corpCode : newCorpSet) {
-            JsonObject corpObj = new JsonObject();
-            corpObj.addProperty("corp_code", corpCode);
-            newCorpJsonArr.add(corpObj);
+
+        for (int i = 0; i < corpJsonArr.size(); i++) {
+            JsonObject obj = corpJsonArr.get(i).getAsJsonObject();
+            String corp_code = obj.get("corp_code").getAsString();
+
+            if (newCorpSet.contains(corp_code)) {
+                newCorpJsonArr.add(obj);
+            }
         }
 
         FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json");
@@ -384,6 +421,199 @@ public class OpenDart {
         writer.close();
 
     }
+
+    // 기업고유번호 DB MERGE
+    public static void insertCorpCode() throws ClassNotFoundException, IOException {
+
+        Class.forName("org.postgresql.Driver");
+
+        String url = "jdbc:postgresql://localhost:5432/postgres";
+        String user = "postgres";
+        String password = "postgres";
+
+
+        try (Connection connection = DriverManager.getConnection(url, user, password);) {
+            Statement statement = connection.createStatement();
+            /* SELECT
+            ResultSet rs = statement.executeQuery("SELECT * FROM COMPANY WHERE 1=1 AND CORP_CODE = '00434003'");
+
+            while (rs.next()) {
+                String stockName =  rs.getString("stock_name");
+                System.out.println(stockName);
+            }
+            rs.close();
+            statement.close();
+            connection.close();
+            */
+
+            // 새로운 기업고유번호 INSERT
+            JsonParser jsonParser = new JsonParser();
+
+            Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json"), "UTF-8");
+            JsonElement element = jsonParser.parse(reader);
+            JsonArray jsonArr = element.getAsJsonArray();
+
+            String sql = "MERGE INTO CORP_CODE AS A " +
+                         "USING (VALUES (?, ?, ?, ?, ?)) AS B (CORP_CODE, CORP_ENG_NAME, CORP_NAME, STOCK_CODE, MODIFY_DATE)" +
+                         "ON A.CORP_CODE = B.CORP_CODE " +
+                         "WHEN MATCHED THEN " +
+                             "UPDATE SET CORP_CODE = B.CORP_CODE, " +
+                                         "CORP_ENG_NAME = B.CORP_ENG_NAME, " +
+                                         "CORP_NAME = B.CORP_NAME, " +
+                                         "STOCK_CODE = B.STOCK_CODE, " +
+                                         "MODIFY_DATE = B.MODIFY_DATE " +
+                         "WHEN NOT MATCHED THEN " +
+                             "INSERT (CORP_CODE, CORP_ENG_NAME, CORP_NAME, STOCK_CODE, MODIFY_DATE) " +
+                             "VALUES (B.CORP_CODE, B.CORP_ENG_NAME, B.CORP_NAME, B.STOCK_CODE, B.MODIFY_DATE)";
+
+            PreparedStatement ps = connection.prepareStatement(sql);
+
+            for (JsonElement e : jsonArr) {
+                String corpCode = e.getAsJsonObject().get("corp_code").getAsString();
+                String corpEngName = e.getAsJsonObject().get("corp_eng_name").getAsString();
+                String corpName = e.getAsJsonObject().get("corp_name").getAsString();
+                String stockCode = e.getAsJsonObject().get("stock_code").getAsString();
+                String modifyDate = e.getAsJsonObject().get("modify_date").getAsString();
+
+                ps.setString(1, corpCode);
+                ps.setString(2, corpEngName);
+                ps.setString(3, corpName);
+                ps.setString(4, stockCode);
+                ps.setString(5, modifyDate);
+
+                int result = ps.executeUpdate();
+
+                if (result > 0) {
+                    System.out.println("[SUCCESS] CORP_CODE : " + corpCode + ", CORP_NAME : " + corpName + " -> MERGE 처리");
+                } else {
+                    System.out.println("[NO CHANGE] CORP_CODE : " + corpCode + ", CORP_NAME : " + corpName + " -> 변경 없음");
+                }
+            }
+
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    // 기업개황정보 DB MERGE
+    public static void insertCompanyInfo() throws ClassNotFoundException, IOException {
+
+        Class.forName("org.postgresql.Driver");
+
+        String url = "jdbc:postgresql://localhost:5432/postgres";
+        String user = "postgres";
+        String password = "postgres";
+
+
+        try (Connection connection = DriverManager.getConnection(url, user, password);) {
+            Statement statement = connection.createStatement();
+            /* SELECT
+            ResultSet rs = statement.executeQuery("SELECT * FROM COMPANY WHERE 1=1 AND CORP_CODE = '00434003'");
+
+            while (rs.next()) {
+                String stockName =  rs.getString("stock_name");
+                System.out.println(stockName);
+            }
+            rs.close();
+            statement.close();
+            connection.close();
+            */
+
+            // 새로운 기업개황정보 INSERT
+            JsonParser jsonParser = new JsonParser();
+
+            Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCompanyInfo.json"), "UTF-8");
+            JsonElement element = jsonParser.parse(reader);
+            JsonArray jsonArr = element.getAsJsonArray();
+
+            String sql = "MERGE INTO COMPANY AS A " +
+                         "USING (VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)) AS B " +
+                                        "(PHN_NO, ACC_MT, CEO_NM, STOCK_NAME, CORP_CODE, INDUTY_CODE, JURIR_NO, MESSAGE, CORP_NAME, EST_DT, HM_URL, CORP_CLS, CORP_NAME_ENG, IR_URL, ADRES, STOCK_CODE, BIZR_NO, FAX_NO, STATUS)" +
+                         "ON A.CORP_CODE = B.CORP_CODE " +
+                         "WHEN MATCHED THEN " +
+                             "UPDATE SET PHN_NO = B.PHN_NO, " +
+                                        "ACC_MT = B.ACC_MT, " +
+                                        "CEO_NM = B.CEO_NM, " +
+                                        "STOCK_NAME = B.STOCK_NAME, " +
+                                        "CORP_CODE = B.CORP_CODE, " +
+                                        "INDUTY_CODE = B.INDUTY_CODE, " +
+                                        "JURIR_NO = B.JURIR_NO, " +
+                                        "MESSAGE = B.MESSAGE, " +
+                                        "CORP_NAME = B.CORP_NAME, " +
+                                        "EST_DT = B.EST_DT, " +
+                                        "HM_URL = B.HM_URL, " +
+                                        "CORP_CLS = B.CORP_CLS, " +
+                                        "CORP_NAME_ENG = B.CORP_NAME_ENG, " +
+                                        "IR_URL = B.IR_URL, " +
+                                        "ADRES = B.ADRES, " +
+                                        "STOCK_CODE = B.STOCK_CODE, " +
+                                        "BIZR_NO = B.BIZR_NO, " +
+                                        "FAX_NO = B.FAX_NO, " +
+                                        "STATUS = B.STATUS " +
+                         "WHEN NOT MATCHED THEN " +
+                             "INSERT (PHN_NO, ACC_MT, CEO_NM, STOCK_NAME, CORP_CODE, INDUTY_CODE, JURIR_NO, MESSAGE, CORP_NAME, EST_DT, HM_URL, CORP_CLS, CORP_NAME_ENG, IR_URL, ADRES, STOCK_CODE, BIZR_NO, FAX_NO, STATUS) " +
+                             "VALUES (B.PHN_NO, B.ACC_MT, B.CEO_NM, B.STOCK_NAME, B.CORP_CODE, B.INDUTY_CODE, B.JURIR_NO, B.MESSAGE, B.CORP_NAME, B.EST_DT, B.HM_URL, B.CORP_CLS, B.CORP_NAME_ENG, B.IR_URL, B.ADRES, B.STOCK_CODE, B.BIZR_NO, B.FAX_NO, B.STATUS)";
+
+            PreparedStatement ps = connection.prepareStatement(sql);
+
+            for (JsonElement e : jsonArr) {
+                String phnNo = e.getAsJsonObject().get("phn_no").getAsString();
+                String accMt = e.getAsJsonObject().get("acc_mt").getAsString();
+                String ceoNm = e.getAsJsonObject().get("ceo_nm").getAsString();
+                String stockName = e.getAsJsonObject().get("stock_name").getAsString();
+                String corpCode = e.getAsJsonObject().get("corp_code").getAsString();
+                String indutyCode = e.getAsJsonObject().get("induty_code").getAsString();
+                String jurirNo = e.getAsJsonObject().get("jurir_no").getAsString();
+                String message = e.getAsJsonObject().get("message").getAsString();
+                String corpName = e.getAsJsonObject().get("corp_name").getAsString();
+                String estDT = e.getAsJsonObject().get("est_dt").getAsString();
+                String hmUrl = e.getAsJsonObject().get("hm_url").getAsString();
+                String corpCLS = e.getAsJsonObject().get("corp_cls").getAsString();
+                String corpNameEng = e.getAsJsonObject().get("corp_name_eng").getAsString();
+                String irUrl = e.getAsJsonObject().get("ir_url").getAsString();
+                String adres = e.getAsJsonObject().get("adres").getAsString();
+                String stockCode = e.getAsJsonObject().get("stock_code").getAsString();
+                String bizrNo = e.getAsJsonObject().get("bizr_no").getAsString();
+                String faxNo = e.getAsJsonObject().get("fax_no").getAsString();
+                String status = e.getAsJsonObject().get("status").getAsString();
+
+                ps.setString(1, phnNo);
+                ps.setString(2, accMt);
+                ps.setString(3, ceoNm);
+                ps.setString(4, stockName);
+                ps.setString(5, corpCode);
+                ps.setString(6, indutyCode);
+                ps.setString(7, jurirNo);
+                ps.setString(8, message);
+                ps.setString(9, corpName);
+                ps.setString(10, estDT);
+                ps.setString(11, hmUrl);
+                ps.setString(12, corpCLS);
+                ps.setString(13, corpNameEng);
+                ps.setString(14, irUrl);
+                ps.setString(15, adres);
+                ps.setString(16, faxNo);
+                ps.setString(17, status);
+                ps.setString(18, bizrNo);
+                ps.setString(19, faxNo);
+
+                int result = ps.executeUpdate();
+
+                if (result > 0) {
+                    System.out.println("[SUCCESS] CORP_CODE : " + corpCode + ", CORP_NAME : " + corpName + " -> MERGE 처리");
+                } else {
+                    System.out.println("[NO CHANGE] CORP_CODE : " + corpCode + ", CORP_NAME : " + corpName + " -> 변경 없음");
+                }
+            }
+
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
 
 }
 
