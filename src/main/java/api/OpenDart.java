@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -453,6 +454,9 @@ public class OpenDart {
             JsonElement element = jsonParser.parse(reader);
             JsonArray jsonArr = element.getAsJsonArray();
 
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String now = sdf.format(new Date());
+
             String sql = "MERGE INTO CORP_CODE AS A " +
                          "USING (VALUES (?, ?, ?, ?, ?)) AS B (CORP_CODE, CORP_ENG_NAME, CORP_NAME, STOCK_CODE, MODIFY_DATE)" +
                          "ON A.CORP_CODE = B.CORP_CODE " +
@@ -461,10 +465,11 @@ public class OpenDart {
                                          "CORP_ENG_NAME = B.CORP_ENG_NAME, " +
                                          "CORP_NAME = B.CORP_NAME, " +
                                          "STOCK_CODE = B.STOCK_CODE, " +
-                                         "MODIFY_DATE = B.MODIFY_DATE " +
+                                         "MODIFY_DATE = B.MODIFY_DATE, " +
+                                         "LAST_CHNG_DTL_DTTM = '" + now + "' " +
                          "WHEN NOT MATCHED THEN " +
-                             "INSERT (CORP_CODE, CORP_ENG_NAME, CORP_NAME, STOCK_CODE, MODIFY_DATE) " +
-                             "VALUES (B.CORP_CODE, B.CORP_ENG_NAME, B.CORP_NAME, B.STOCK_CODE, B.MODIFY_DATE)";
+                             "INSERT (CORP_CODE, CORP_ENG_NAME, CORP_NAME, STOCK_CODE, MODIFY_DATE, DEL_YN, FRST_RGSR_DTL_DTTM, LAST_CHNG_DTL_DTTM) " +
+                             "VALUES (B.CORP_CODE, B.CORP_ENG_NAME, B.CORP_NAME, B.STOCK_CODE, B.MODIFY_DATE, 'N', '" + now +  "', '" + now + "')";
 
             PreparedStatement ps = connection.prepareStatement(sql);
 
@@ -528,6 +533,9 @@ public class OpenDart {
             JsonElement element = jsonParser.parse(reader);
             JsonArray jsonArr = element.getAsJsonArray();
 
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String now = sdf.format(new Date());
+
             String sql = "MERGE INTO COMPANY AS A " +
                          "USING (VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)) AS B " +
                                         "(PHN_NO, ACC_MT, CEO_NM, STOCK_NAME, CORP_CODE, INDUTY_CODE, JURIR_NO, MESSAGE, CORP_NAME, EST_DT, HM_URL, CORP_CLS, CORP_NAME_ENG, IR_URL, ADRES, STOCK_CODE, BIZR_NO, FAX_NO, STATUS)" +
@@ -551,10 +559,13 @@ public class OpenDart {
                                         "STOCK_CODE = B.STOCK_CODE, " +
                                         "BIZR_NO = B.BIZR_NO, " +
                                         "FAX_NO = B.FAX_NO, " +
-                                        "STATUS = B.STATUS " +
+                                        "STATUS = B.STATUS, " +
+                                        "LAST_CHNG_DTL_DTTM = '" + now + "' " +
                          "WHEN NOT MATCHED THEN " +
-                             "INSERT (PHN_NO, ACC_MT, CEO_NM, STOCK_NAME, CORP_CODE, INDUTY_CODE, JURIR_NO, MESSAGE, CORP_NAME, EST_DT, HM_URL, CORP_CLS, CORP_NAME_ENG, IR_URL, ADRES, STOCK_CODE, BIZR_NO, FAX_NO, STATUS) " +
-                             "VALUES (B.PHN_NO, B.ACC_MT, B.CEO_NM, B.STOCK_NAME, B.CORP_CODE, B.INDUTY_CODE, B.JURIR_NO, B.MESSAGE, B.CORP_NAME, B.EST_DT, B.HM_URL, B.CORP_CLS, B.CORP_NAME_ENG, B.IR_URL, B.ADRES, B.STOCK_CODE, B.BIZR_NO, B.FAX_NO, B.STATUS)";
+                             "INSERT (PHN_NO, ACC_MT, CEO_NM, STOCK_NAME, CORP_CODE, INDUTY_CODE, JURIR_NO, MESSAGE, CORP_NAME, EST_DT, HM_URL, CORP_CLS, CORP_NAME_ENG, IR_URL, ADRES, STOCK_CODE, BIZR_NO, FAX_NO, STATUS, DEL_YN, FRST_RGSR_DTL_DTTM, LAST_CHNG_DTL_DTTM) " +
+                             "VALUES (B.PHN_NO, B.ACC_MT, B.CEO_NM, B.STOCK_NAME, B.CORP_CODE, B.INDUTY_CODE, B.JURIR_NO, B.MESSAGE, B.CORP_NAME, B.EST_DT, B.HM_URL, B.CORP_CLS, B.CORP_NAME_ENG, B.IR_URL, B.ADRES, B.STOCK_CODE, B.BIZR_NO, B.FAX_NO, B.STATUS, 'N', '" + now + "', '" + now + "')";
+
+            System.out.println();
 
             PreparedStatement ps = connection.prepareStatement(sql);
 
