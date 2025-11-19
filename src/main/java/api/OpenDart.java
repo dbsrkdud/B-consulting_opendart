@@ -41,7 +41,10 @@ public class OpenDart {
         // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장 (corp_code가 중복일 시 새로운 기업개황 정보로 저장)
         joinJsonArray("resultCompanyInfo.json", "newCompanyInfo.json");
 
-        // json -> csv 변환
+        // json -> csv 변환 : 기업고유번호
+        convertJsonToCsv("corpCode");
+
+        // json -> csv 변환 : 기업개황
         convertJsonToCsv("resultCompanyInfo");
 
         // 기업고유번호 MERGE
@@ -565,8 +568,6 @@ public class OpenDart {
                              "INSERT (PHN_NO, ACC_MT, CEO_NM, STOCK_NAME, CORP_CODE, INDUTY_CODE, JURIR_NO, MESSAGE, CORP_NAME, EST_DT, HM_URL, CORP_CLS, CORP_NAME_ENG, IR_URL, ADRES, STOCK_CODE, BIZR_NO, FAX_NO, STATUS, DEL_YN, FRST_RGSR_DTL_DTTM, LAST_CHNG_DTL_DTTM) " +
                              "VALUES (B.PHN_NO, B.ACC_MT, B.CEO_NM, B.STOCK_NAME, B.CORP_CODE, B.INDUTY_CODE, B.JURIR_NO, B.MESSAGE, B.CORP_NAME, B.EST_DT, B.HM_URL, B.CORP_CLS, B.CORP_NAME_ENG, B.IR_URL, B.ADRES, B.STOCK_CODE, B.BIZR_NO, B.FAX_NO, B.STATUS, 'N', '" + now + "', '" + now + "')";
 
-            System.out.println();
-
             PreparedStatement ps = connection.prepareStatement(sql);
 
             for (JsonElement e : jsonArr) {
@@ -605,10 +606,10 @@ public class OpenDart {
                 ps.setString(13, corpNameEng);
                 ps.setString(14, irUrl);
                 ps.setString(15, adres);
-                ps.setString(16, faxNo);
-                ps.setString(17, status);
-                ps.setString(18, bizrNo);
-                ps.setString(19, faxNo);
+                ps.setString(16, stockCode);
+                ps.setString(17, bizrNo);
+                ps.setString(18, faxNo);
+                ps.setString(19, status);
 
                 int result = ps.executeUpdate();
 
