@@ -232,6 +232,7 @@ public class OpenDart {
 
         int total =  corpCodeJsonArr.size();
         System.out.println("총 기업 수  : " + total);
+        int cnt = 0;
 
         // 오픈 다트 하루 수집량 10,000건으로 수집한 기업고유번호 데이터 갯수에 따른 조정 필요 (corpCodeJsonArr)
         int batchSize = corpCodeJsonArr.size();
@@ -248,10 +249,66 @@ public class OpenDart {
             try {
                 // 기업개황 API
                 JSONObject companyInfo = (JSONObject) retrieveCompany(corp_code);
+                cnt++;
+
+                System.out.println("기업개황 수집 : " + cnt + "/" + total);
+
+                String phn_no = companyInfo.get("phn_no").toString();
+                if (phn_no.endsWith("\"")) phn_no = phn_no.substring(0, phn_no.length() - 1);
+                String acc_mt = companyInfo.get("acc_mt").toString();
+                if (acc_mt.endsWith("\"")) acc_mt = acc_mt.substring(0, acc_mt.length() - 1);
+                String ceo_nm = companyInfo.get("ceo_nm").toString();
+                if (ceo_nm.endsWith("\"")) ceo_nm = ceo_nm.substring(0, ceo_nm.length() - 1);
+                String stock_name = companyInfo.get("stock_name").toString();
+                if (stock_name.endsWith("\"")) stock_name = stock_name.substring(0, stock_name.length() - 1);
+                String induty_code = companyInfo.get("induty_code").toString();
+                if (induty_code.endsWith("\"")) induty_code = induty_code.substring(0, induty_code.length() - 1);
+                String jurir_no = companyInfo.get("jurir_no").toString();
+                if (jurir_no.endsWith("\"")) jurir_no = jurir_no.substring(0, jurir_no.length() - 1);
+                String message =  companyInfo.get("message").toString();
+                if (message.endsWith("\"")) message = message.substring(0, message.length() - 1);
+                String corp_name = companyInfo.get("corp_name").toString();
+                if (corp_name.endsWith("\"")) corp_name = corp_name.substring(0, corp_name.length() - 1);
+                String est_dt = companyInfo.get("est_dt").toString();
+                if (est_dt.endsWith("\"")) est_dt = est_dt.substring(0, est_dt.length() - 1);
+                String hm_url = companyInfo.get("hm_url").toString();
+                if (hm_url.endsWith("\"")) hm_url = hm_url.substring(0, hm_url.length() - 1);
+                String corp_cls = companyInfo.get("corp_cls").toString();
+                if (corp_cls.endsWith("\"")) corp_cls = corp_cls.substring(0, corp_cls.length() - 1);
+                String corp_name_eng = companyInfo.get("corp_name_eng").toString();
+                if (corp_name_eng.endsWith("\"")) corp_name_eng = corp_name_eng.substring(0, corp_name_eng.length() - 1);
+                String ir_url = companyInfo.get("ir_url").toString();
+                if (ir_url.endsWith("\"")) ir_url = ir_url.substring(0, ir_url.length() - 1);
+                String adres = companyInfo.get("adres").toString();
+                if (adres.endsWith("\"")) adres = adres.substring(0, adres.length() - 1);
+                String stock_code = companyInfo.get("stock_code").toString();
+                if (stock_code.endsWith("\"")) stock_code = stock_code.substring(0, stock_code.length() - 1);
+                String bizr_no = companyInfo.get("bizr_no").toString();
+                if (bizr_no.endsWith("\"")) bizr_no = bizr_no.substring(0, bizr_no.length() - 1);
+                String fax_no = companyInfo.get("fax_no").toString();
+                if (fax_no.endsWith("\"")) fax_no = fax_no.substring(0, fax_no.length() - 1);
+                String status = companyInfo.get("status").toString();
+                if (status.endsWith("\"")) status = status.substring(0, status.length() - 1);
+
+                companyInfo.put("phn_no", phn_no);
+                companyInfo.put("acc_mt", acc_mt);
+                companyInfo.put("ceo_nm", ceo_nm);
+                companyInfo.put("stock_name", stock_name);
+                companyInfo.put("induty_code", induty_code);
+                companyInfo.put("jurir_no", jurir_no);
+                companyInfo.put("message", message);
+                companyInfo.put("corp_name", corp_name);
+                companyInfo.put("est_dt", est_dt);
+                companyInfo.put("hm_url", hm_url);
+                companyInfo.put("corp_cls", corp_cls);
+                companyInfo.put("corp_name_eng", corp_name_eng);
+                companyInfo.put("adres", adres);
+                companyInfo.put("stock_code", stock_code);
+                companyInfo.put("bizr_no", bizr_no);
+                companyInfo.put("fax_no", fax_no);
+                companyInfo.put("status", status);
 
                 companyJsonArr.put(companyInfo);
-
-                System.out.println(i + 1 + " / " + batchSize + " 건 처리 완료");
 
                 TimeUnit.MILLISECONDS.sleep(delayMillis);
 
@@ -264,10 +321,15 @@ public class OpenDart {
         // 기업개황 데이터 수집 결과 저장할 json 파일명
         String resultFileName = "newCompanyInfo.json";
 
-        FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + resultFileName);
-        writer.write(companyJsonArr.toString());
-        writer.flush();
-        writer.close();
+        if (companyJsonArr.length() > 0) {
+            FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + resultFileName);
+            writer.write(companyJsonArr.toString());
+            writer.flush();
+            writer.close();
+        } else {
+            System.out.println("업데이트 된 기업개황 데이터가 없습니다.");
+        }
+
     }
 
     // 두개의 json 파일 묶어서 하나의 json 파일로 저장
@@ -280,6 +342,12 @@ public class OpenDart {
 
         Object objA = jsonParser.parse(readerA);
         JsonArray jsonArrayA = (JsonArray) objA;
+
+        // resultCompanyInfo.json 파일 백업
+        FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\resultCompanyInfo.json.bak");
+        writer.write(jsonArrayA.toString());
+        writer.flush();
+        writer.close();
 
         Reader readerB = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileNameB), "UTF-8");
 
@@ -297,6 +365,13 @@ public class OpenDart {
         for (int i = 0; i < jsonArrayB.size(); i++) {
             JsonObject obj = jsonArrayB.get(i).getAsJsonObject();
             String corp_code = obj.get("corp_code").getAsString();
+            if (map.get(corp_code) != null) {
+                System.out.println("===== 업데이트 전 =====");
+                System.out.println(map.get(corp_code).toString());
+                System.out.println("===== 업데이트 후 =====");
+                System.out.println(obj);
+                System.out.println();
+            }
             map.put(corp_code, obj);
         }
 
@@ -306,11 +381,10 @@ public class OpenDart {
 
         String resultFileName = "C:\\Users\\admin\\Desktop\\B-consulting_opendart\\resultCompanyInfo.json";
 
-        FileWriter writer = new FileWriter(resultFileName);
-        writer.write(resultJson.toString());
-        writer.flush();
-        writer.close();
-
+        FileWriter writer2 = new FileWriter(resultFileName);
+        writer2.write(resultJson.toString());
+        writer2.flush();
+        writer2.close();
     }
 
     // 새로운 기업고유번호에 대한 기업개황 데이터 수집
@@ -380,10 +454,14 @@ public class OpenDart {
             }
         }
 
-        FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json");
-        writer.write(newCorpJsonArr.toString());
-        writer.flush();
-        writer.close();
+        if (newCorpJsonArr.size() > 0) {
+            FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json");
+            writer.write(newCorpJsonArr.toString());
+            writer.flush();
+            writer.close();
+        } else {
+            System.out.println("업데이트 된 기업고유번호 데이터가 없습니다.");
+        }
 
     }
 
@@ -413,7 +491,7 @@ public class OpenDart {
 
         for (JsonElement jsonElement : jsonArr) {
             idx = 0;
-            for (int i = 0; i < keyArr.size(); i++) {
+             for (int i = 0; i < keyArr.size(); i++) {
                 writer.write(jsonElement.getAsJsonObject().get(keyArr.get(i)).toString());
                 if (++idx < Keys.size()) {
                     writer.write(",");
