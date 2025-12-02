@@ -1,6 +1,9 @@
-package api;
+package schedule;
 
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.w3c.dom.Document;
@@ -14,57 +17,65 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class OpenDart {
+public class OpenDart_Daily implements Runnable{
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
+    public static void main(String[] args) {
+        try {
+            backupFile("corpCode.jso");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-        // 1. 기업 고유번호 조회 -> 수집 결과 파일 : corpCode.json
-        retrieveCorpCode();
+    @Override
+    public void run() {
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            System.out.println("=====" + now + " 스케줄러 실행 =====");
 
-        // 2. 기업개황 데이터 수집 -> 파라미터 : 기업고유번호 json 파일
-        // setCompanyJsonArr("corpCode.json");
+            // 기업 고유번호 조회 -> 수집 결과 파일 : corpCode.json
+            retrieveCorpCode();
 
-        // 3. 새로운 기업고유번호에 대한 기업개황 데이터 수집 -> 수집 결과 파일 : newCorpCode.json
-        setnewCorpCode();
+            // 새로운 기업고유번호에 대한 기업개황 데이터 수집 -> 수집 결과 파일 : newCorpCode.json
+            setnewCorpCode();
 
-        // 4. 새로 추가 될 기업고유번호에 대한 기업개황 데이터 수집
-        setCompanyJsonArr("newCorpCode.json");
+            // 새로 추가 될 기업고유번호에 대한 기업개황 데이터 수집
+            setCompanyJsonArr("newCorpCode.json");
 
-        // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장 (corp_code가 중복일 시 새로운 기업개황 정보로 저장)
-        joinJsonArray("resultCompanyInfo.json", "newCompanyInfo.json");
+            // 두 개의 json 파일 합쳐서 하나의 json 파일로 저장 (corp_code가 중복일 시 새로운 기업개황 정보로 저장)
+            joinJsonArray("resultCompanyInfo.json", "newCompanyInfo.json");
 
-        // json -> csv 변환 : 기업고유번호
-        convertJsonToCsv("corpCode");
+            // json -> csv 변환 : 기업고유번호
+            convertJsonToCsv("corpCode");
 
-        // json -> csv 변환 : 기업개황
-        convertJsonToCsv("resultCompanyInfo");
+            // json -> csv 변환 : 기업개황
+            convertJsonToCsv("resultCompanyInfo");
 
-        // 기업고유번호 MERGE
-        insertCorpCode();
+            // 기업고유번호 MERGE
+            insertCorpCode();
 
-        // 기업개황 MERGE
-        insertCompanyInfo();
+            // 기업개황 MERGE
+            insertCompanyInfo();
 
-//        JsonParser jsonParser = new JsonParser();
-//
-//        Reader reader = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json"), "UTF-8");
-//        JsonElement element = jsonParser.parse(reader);
-//        JsonArray jsonArr = element.getAsJsonArray();
-//
-//        System.out.println("arr 크기 : " + jsonArr.size());
-
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // 고유번호 - 오픈다트
-    public static JSONArray retrieveCorpCode() throws IOException {
+    public static void retrieveCorpCode() throws IOException {
         String crtfc_key = "a1ab4687628095bbae0fd90f4c34c9c897fda441";
         String zipFilePath = "corpCode.zip";
         String xmlFilePath = "corpCode.xml";
@@ -163,6 +174,9 @@ public class OpenDart {
                 jsonArr.put(obj);
             }
 
+            // 파일 백업
+            backupFile("corpCode.json");
+
             try (FileWriter fw = new FileWriter(jsonFilePath)) {
                 // indetFactor : 들여쓰기 공백 수
                 fw.write(jsonArr.toString(2));
@@ -181,7 +195,6 @@ public class OpenDart {
             e.printStackTrace();
         }
 
-        return jsonArr;
     }
 
     // 기업개황 - 오픈다트
@@ -213,7 +226,7 @@ public class OpenDart {
             return new JSONObject(sb.toString());
 
         } else {
-            // System.out.println("HTTP 요청 실패, 코드 : " + responseCode);
+            System.out.println("HTTP 요청 실패, 코드 : " + responseCode);
             throw new IOException("HTTP 요청 실패, 코드 : " + responseCode);
         }
     }
@@ -234,7 +247,7 @@ public class OpenDart {
         System.out.println("총 기업 수  : " + total);
         int cnt = 0;
 
-        // 오픈 다트 하루 수집량 10,000건으로 수집한 기업고유번호 데이터 갯수에 따른 조정 필요 (corpCodeJsonArr)
+        // 오픈 다트 하루 수집량 10,000건으로 초기 데이터 적재 시 수집한 기업고유번호 데이터 갯수에 따른 조정 필요 (corpCodeJsonArr)
         int batchSize = corpCodeJsonArr.size();
         // API 차단 방지용
         int delayMillis = 600;
@@ -321,6 +334,9 @@ public class OpenDart {
         // 기업개황 데이터 수집 결과 저장할 json 파일명
         String resultFileName = "newCompanyInfo.json";
 
+        // 파일 백업
+        backupFile(resultFileName);
+
         if (companyJsonArr.length() > 0) {
             FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + resultFileName);
             writer.write(companyJsonArr.toString());
@@ -342,12 +358,6 @@ public class OpenDart {
 
         Object objA = jsonParser.parse(readerA);
         JsonArray jsonArrayA = (JsonArray) objA;
-
-        // resultCompanyInfo.json 파일 백업
-        FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\resultCompanyInfo.json.bak");
-        writer.write(jsonArrayA.toString());
-        writer.flush();
-        writer.close();
 
         Reader readerB = new InputStreamReader(new FileInputStream("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + fileNameB), "UTF-8");
 
@@ -379,12 +389,15 @@ public class OpenDart {
             resultJson.add(obj);
         }
 
-        String resultFileName = "C:\\Users\\admin\\Desktop\\B-consulting_opendart\\resultCompanyInfo.json";
+        String resultFileName = "resultCompanyInfo.json";
 
-        FileWriter writer2 = new FileWriter(resultFileName);
-        writer2.write(resultJson.toString());
-        writer2.flush();
-        writer2.close();
+        // 파일 백업
+        backupFile(resultFileName);
+
+        FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\" + resultFileName);
+        writer.write(resultJson.toString());
+        writer.flush();
+        writer.close();
     }
 
     // 새로운 기업고유번호에 대한 기업개황 데이터 수집
@@ -453,6 +466,9 @@ public class OpenDart {
                 newCorpJsonArr.add(obj);
             }
         }
+
+        // 파일 백업
+        backupFile("newCorpCode.json");
 
         if (newCorpJsonArr.size() > 0) {
             FileWriter writer = new FileWriter("C:\\Users\\admin\\Desktop\\B-consulting_opendart\\newCorpCode.json");
@@ -698,12 +714,33 @@ public class OpenDart {
                 }
             }
 
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
+    // 데이터 수집 파일 백업
+    public static void backupFile(String fileName) throws IOException {
+        String filePath = System.getProperty("user.dir");
+        String fileExetender = fileName.substring(fileName.lastIndexOf("."));
+        fileName = fileName.substring(0, fileName.lastIndexOf("."));
+
+        File file = new File(filePath + "/" + fileName + fileExetender);
+
+        if (file.exists()) {
+            LocalDateTime now = LocalDateTime.now();
+            String formatter = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+
+            File newFile = new File(filePath + "/old/" + fileName + "_" + formatter + fileExetender);
+
+            // 파일이 이미 있으면 덮어쓰기
+            Files.copy(file.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+            System.out.println("[백업 완료] 파일명 : " + fileName + fileExetender + ", 경로 : " + newFile.getAbsolutePath());
+        } else {
+            System.out.println("[백업 실패] " + fileName + fileExetender + " 파일이 존재하지 않습니다.");
+        }
+    }
 
 }
 
