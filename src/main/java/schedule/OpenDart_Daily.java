@@ -206,7 +206,7 @@ public class OpenDart_Daily implements Runnable{
             }
         }
 
-        System.out.println("업데이트 된 기업고유번호 " + newCorpCodeSet.size() + "건");
+        System.out.println("업데이트 된 기업고유번호 " + resultCorpCodeSet.size() + "건");
         resultCorpCodeSet.forEach(corpCode -> System.out.println("업데이트 된 기업고유번호 : " + corpCode));
 
         JsonArray newCorpCodeJsonArr = new JsonArray();

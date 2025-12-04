@@ -48,6 +48,7 @@ public class Scheduler {
 
     public static void main(String[] args) {
         Scheduler scheduler = new Scheduler();
+        scheduler.execute(new Egov_Cntrct_Daily(), 0, 0, 0);
         scheduler.execute(new OpenDart_Daily(), 10, 0, 0);
     }
 
